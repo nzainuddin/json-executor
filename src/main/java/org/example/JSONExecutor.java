@@ -1,4 +1,5 @@
 package org.example;
+import java.io.File;
 import java.io.IOException;
 import java.net.http.HttpClient;
 import java.nio.file.DirectoryStream;
@@ -10,12 +11,16 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Scanner;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+
+import static sun.security.util.KnownOIDs.findMatch;
 
 public class JSONExecutor {
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -65,6 +70,31 @@ public class JSONExecutor {
         Object json = mapper.readValue(content, Object.class);
         String formattedJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
         Files.writeString(filePath, formattedJson);
+    }
+
+    private static void executeJsonRequest(HttpClient client, File file, String version, String cardNumber, Path outputDir, Path requestDir) throws IOException {
+        try {
+            String content = Files.readString(file.toPath());
+            String originalUrl = findMatch(content, "(?s)--url\\s+([^\\\\\\n]+)");
+            if (originalUrl == null || originalUrl.isEmpty()) {
+                System.out.println("Error processing " + file.getName() + ": URL not found");
+                return;
+            }
+            String url = replacePlaceholders(originalUrl, version, cardNumber).trim();
+            String body = "";
+            Pattern dataPattern = Pattern.compile("--data\\s+\"\\s*(\\{[\\s\\S]*?\\})\\s*\"", Pattern.MULTILINE);
+            Matcher dataMatcher = dataPattern.matcher(content);
+            if (dataMatcher.find()) {
+                body = dataMatcher.group(1);
+            } else {
+                dataPattern = Pattern.compile("--data\\s+\"\\s*(\\{[\\s\\S]*?\\})\\s*\"", Pattern.MULTILINE);
+                dataMatcher = dataPattern.matcher(content);
+                if (dataMatcher.find()) {
+                    body = dataMatcher.group(1);
+                }
+            }
+            body = replacePlaceholders(body, version, cardNumber);
+        }
     }
 
     public static void main( String[] args ) throws IOException {
