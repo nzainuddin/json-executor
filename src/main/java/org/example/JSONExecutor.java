@@ -9,6 +9,8 @@ import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Scanner;
+import java.util.UUID;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import javax.net.ssl.SSLContext;
@@ -48,6 +50,21 @@ public class JSONExecutor {
         } catch (Exception e) {
             throw new RuntimeException("Failed to ceate SSL Context", e);
         }
+    }
+
+    private static String replacePlaceholders(String text, String version, String cardNumber) {
+        while (text.contains("${UUID}")) {
+            text = text.replaceFirst("\\$\\{UUID\\}", UUID.randomUUID().toString());
+        }
+        return text.replaceFirst("\\$\\{version\\}", version)
+                .replaceAll("\\$\\{CARD_NUMBER\\}", cardNumber);
+    }
+
+    private static void formatJsonFile(Path filePath) throws IOException {
+        String content = Files.readString(filePath);
+        Object json = mapper.readValue(content, Object.class);
+        String formattedJson = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(json);
+        Files.writeString(filePath, formattedJson);
     }
 
     public static void main( String[] args ) throws IOException {
