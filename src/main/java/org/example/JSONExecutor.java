@@ -94,6 +94,10 @@ public class JSONExecutor {
                 }
             }
             body = replacePlaceholders(body, version, cardNumber);
+
+            String authHeader = findMatch(content, "Authorization:\\s+([^\\\\\\n]+)");
+            authHeader = (authHeader != null) ? authHeader.trim().replace("'", "") : "";
+            String xHeader = findMatch(content, "X-Header")
         }
     }
 
