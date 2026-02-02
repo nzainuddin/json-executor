@@ -1,7 +1,10 @@
 package org.example;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +12,8 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.UUID;
 import java.util.regex.Matcher;
@@ -97,7 +102,32 @@ public class JSONExecutor {
 
             String authHeader = findMatch(content, "Authorization:\\s+([^\\\\\\n]+)");
             authHeader = (authHeader != null) ? authHeader.trim().replace("'", "") : "";
-            String xHeader = findMatch(content, "X-Header")
+
+            Map<String, String> headers = new LinkedHashMap<>();
+            headers.put("Authorization", authHeader);
+            headers.put("Content-Type", "application/json");
+
+            String requestFileName = file.getName().replace(".curl","_request.json");
+            saveRequestToFile(url, headers, body, requestDir, requestFileName);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Authorization", authHeader)
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(body))
+                    .build();
+
+            HttpResponse<String> response = client.send(request,HttpResponse.BodyHandlers.ofString());
+            String outputFileName = file.getName().replace(".curl", ".json");
+            Path outputFile = outputDir.resolve(outputFileName);
+            Files.writeString(outputFile, response.body());
+            formatJsonFile(outputFile);
+
+            System.out.println("Processed: " + file.getName());
+
+        } catch (Exception e) {
+            System.out.println("Error processing " + file.getName() + ": " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
