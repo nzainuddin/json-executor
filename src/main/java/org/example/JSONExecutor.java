@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
-import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -24,8 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-
-import static sun.security.util.KnownOIDs.findMatch;
 
 public class JSONExecutor {
     private static final ObjectMapper mapper = new ObjectMapper();
@@ -131,11 +128,39 @@ public class JSONExecutor {
         }
     }
 
+    private static void saveRequestToFile(String url, Map<String, String> headers,String body, Path requestDir, String fileName) throws IOException {
+//        Map<String, Object> requestData = new LinkedHashMap<>();
+//        requestData.put("url", url);
+//        requestData.put("method","PUT");
+//        requestData.put("headers", headers);
+//
+//        if (body != null && !body.isBlank()) {
+//            try {
+                Object bodyJson = mapper.readValue(body, Object.class);
+//                requestData.put("payload", bodyJson);
+//            } catch (Exception e) {
+//                requestData.put("payload", body);
+//            }
+//        }
+        String formattedRequest = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(bodyJson);
+        Path requestFile = requestDir.resolve(fileName);
+        Files.writeString(requestFile,formattedRequest);
+    }
+
+    private static String findMatch(String text, String regex) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(text);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
     public static void main( String[] args ) throws IOException {
         try (Scanner scanner = new Scanner(System.in)) {
             Path inputDir = Paths.get("json_curl");
             Path outputDir = Paths.get("json_output");
             Path requestDir = Paths.get("json_request");
+
+            System.out.println("Enter card number: ");
+            String cardNumber = scanner.nextLine();
 
             try {
                 Files.createDirectories(outputDir);
